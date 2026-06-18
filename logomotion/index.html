@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ambient Flow Hero</title>
+  
+  <style>
+
+
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .tool-canvas-area {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    canvas { display: block; background: transparent; }
+
+  
+    #audioStartOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.94);
+    }
+
+    #audioStartButton {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 18px 28px;
+      background: #111;
+      color: #fff;
+      font: 600 18px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+
+    #audioPanel {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9999;
+      width: min(290px, calc(100vw - 28px));
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.88);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.14);
+      color: #111;
+      font: 14px/1.3 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #audioPanel .controlRow + .controlRow {
+      margin-top: 12px;
+    }
+
+    #audioPanel .controlHeader {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    #audioPanel input[type="range"] {
+      width: 100%;
+    }
+
+    #audioStatus {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    #hideControlsButton {
+      width: 100%;
+      margin-top: 12px;
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.08);
+      color: #111;
+      font: inherit;
+    }
+
+    #showControlsButton {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9998;
+      display: none;
+      padding: 10px 13px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.88);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+      color: #111;
+      font: 14px/1 system-ui, sans-serif;
+    }
+
+  
+    #backgroundColorPicker {
+      width: 100%;
+      height: 40px;
+      padding: 0;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    #toggleSlidersButton {
+      width: 100%;
+      margin-top: 12px;
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.08);
+      color: #111;
+      font: inherit;
+    }
+
+    #sliderControls.is-hidden {
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div id="audioStartOverlay">
+    <button id="audioStartButton" type="button">הפעלת מיקרופון</button>
+  </div>
+
+  <div id="audioPanel">
+    <div id="sliderControls">
+      <div class="controlRow">
+        <div class="controlHeader">
+          <label for="sensitivitySlider">רגישות</label>
+          <span id="sensitivityValue">82</span>
+        </div>
+        <input id="sensitivitySlider" type="range" min="0" max="200" step="1" value="82">
+      </div>
+
+      <div class="controlRow">
+        <div class="controlHeader">
+          <label for="smoothingSlider">Smooth</label>
+          <span id="smoothingValue">0.36</span>
+        </div>
+        <input id="smoothingSlider" type="range" min="0" max="0.98" step="0.01" value="0.36">
+      </div>
+
+      <div class="controlRow">
+        <div class="controlHeader">
+          <label for="sliceCountSlider">כמות חיתוכים</label>
+          <span id="sliceCountValue">7</span>
+        </div>
+        <input id="sliceCountSlider" type="range" min="2" max="8" step="1" value="7">
+      </div>
+
+      <div class="controlRow">
+        <div class="controlHeader">
+          <label for="cutAngleSlider">זווית החיתוכים</label>
+          <span id="cutAngleValue">0°</span>
+        </div>
+        <input id="cutAngleSlider" type="range" min="-45" max="45" step="1" value="0">
+      </div>
+
+      <div class="controlRow">
+        <div class="controlHeader">
+          <label for="cutDensitySlider">צפיפות / פיזור</label>
+          <span id="cutDensityValue">14</span>
+        </div>
+        <input id="cutDensitySlider" type="range" min="0" max="40" step="1" value="14">
+      </div>
+    </div>
+
+    <div class="controlRow">
+      <div class="controlHeader">
+        <label for="backgroundColorPicker">צבע רקע</label>
+        <span id="backgroundColorValue">#ffffff</span>
+      </div>
+      <input id="backgroundColorPicker" type="color" value="#ffffff">
+    </div>
+
+    <div id="audioStatus">המיקרופון עדיין לא הופעל</div>
+    <button id="toggleSlidersButton" type="button">הסתרת סליידרים</button>
+    <button id="hideControlsButton" type="button">הסתרת כל הפקדים</button>
+  </div>
+
+  <button id="showControlsButton" type="button">פקדים</button>
+
+  <div class="tool-canvas-area">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script>
+
+    // Mobile perf: cap devicePixelRatio so canvases allocate fewer pixels.
+    (function() {
+      var _isMobile = window.innerWidth <= 768;
+      if (_isMobile) {
+        var _nativeDPR = window.devicePixelRatio || 1;
+        var _cappedDPR = Math.min(1.5, _nativeDPR);
+        Object.defineProperty(window, 'devicePixelRatio', { get: function() { return _cappedDPR; } });
+      }
+    })();
+
+    window.CanvasRuntimeAPI = (function() {
+      var _exportMode = 'auto';
+      var _exportWidth = 0;
+      var _exportHeight = 0;
+      var _bgState = { mode: 'none', color: '#ffffff', imageEl: null, imageDataURL: null, fit: 'cover' };
+
+      var _micBridgeEnabled = false;
+      var _micRequestSeq = 0;
+      var _micSessions = {};
+      var _micChunkListeners = [];
+      var _micStopNotified = {};
+
+      var _canvas = document.getElementById('canvas');
+      var _area = _canvas ? _canvas.parentElement : document.querySelector('.tool-canvas-area');
+      var _resizeRAF = null;
+
+      function _detectCanvas() {
+        var r = window.renderer || window.threeRenderer;
+        if (r && r.domElement) {
+          _canvas = r.domElement;
+          _area = _canvas.parentElement;
+          return;
+        }
+        var area = document.querySelector('.tool-canvas-area');
+        if (area) {
+          var canvases = area.querySelectorAll('canvas');
+          var visible = [];
+          for (var j = 0; j < canvases.length; j++) {
+            if (canvases[j].style.display !== 'none') visible.push(canvases[j]);
+          }
+          if (visible.length >= 1) {
+            var largest = visible[0];
+            for (var i = 1; i < visible.length; i++) {
+              if (visible[i].width * visible[i].height > largest.width * largest.height) {
+                largest = visible[i];
+              }
+            }
+            _canvas = largest;
+            _area = _canvas.parentElement;
+          }
+        }
+      }
+
+
+      function _micFallbackConstraints(constraints) {
+        return constraints || { audio: true, video: false };
+      }
+
+      function _makeMicRequestId() {
+        _micRequestSeq += 1;
+        return 'mic-' + Date.now() + '-' + _micRequestSeq;
+      }
+
+      function _emitMicChunk(payload) {
+        var detail = {
+          requestId: payload.requestId,
+          samples: payload.samples || null,
+          sampleRate: payload.sampleRate || 0,
+          timestamp: payload.timestamp || Date.now()
+        };
+        for (var i = 0; i < _micChunkListeners.length; i++) {
+          try {
+            _micChunkListeners[i](detail);
+          } catch (err) {
+            setTimeout(function() { throw err; }, 0);
+          }
+        }
+        if (typeof CustomEvent !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('clay:mic-chunk', { detail: detail }));
+        }
+      }
+
+      function _wrapMicStream(stream, requestId) {
+        if (!stream) return stream;
+        try {
+          Object.defineProperty(stream, '__clayMicRequestId', {
+            value: requestId,
+            configurable: true
+          });
+        } catch (err) {}
+        return stream;
+      }
+
+      function requestMicrophone(constraints) {
+        if (
+          typeof navigator === 'undefined' ||
+          !navigator.mediaDevices ||
+          typeof navigator.mediaDevices.getUserMedia !== 'function'
+        ) {
+          return Promise.reject(new Error('Microphone is not available in this browser.'));
+        }
+        var requestId = _makeMicRequestId();
+        delete _micStopNotified[requestId];
+        return navigator.mediaDevices.getUserMedia(_micFallbackConstraints(constraints))
+          .then(function(stream) {
+            _wrapMicStream(stream, requestId);
+            _micSessions[requestId] = { stream: stream };
+            return stream;
+          });
+      }
+
+      function stopMicrophone(stream) {
+        var requestId = typeof stream === 'string'
+          ? stream
+          : stream && stream.__clayMicRequestId
+          ? stream.__clayMicRequestId
+          : null;
+        var session = requestId ? _micSessions[requestId] : null;
+        if (requestId) delete _micSessions[requestId];
+        if (session) stream = session.stream;
+        if (stream && stream.getTracks) {
+          var tracks = stream.getTracks();
+          for (var i = 0; i < tracks.length; i++) {
+            if (tracks[i] && typeof tracks[i].stop === 'function') {
+              tracks[i].stop();
+            }
+          }
+        }
+      }
+
+      function onMicChunk(callback) {
+        if (typeof callback !== 'function') {
+          return function() {};
+        }
+        _micChunkListeners.push(callback);
+        return function() {
+          var next = [];
+          for (var i = 0; i < _micChunkListeners.length; i++) {
+            if (_micChunkListeners[i] !== callback) next.push(_micChunkListeners[i]);
+          }
+          _micChunkListeners = next;
+        };
+      }
+
+
+      function _applyBgCSS() {
+        _detectCanvas();
+        if (!_canvas) return;
+        if (_bgState.mode === 'none') {
+          _canvas.style.background = '';
+        } else if (_bgState.mode === 'solid') {
+          _canvas.style.background = _bgState.color;
+        } else if (_bgState.mode === 'image') {
+          if (_bgState.imageDataURL) {
+            var fitCss = _bgState.fit === 'fill' ? '100% 100%' : _bgState.fit;
+            _canvas.style.backgroundColor = _bgState.color;
+            _canvas.style.backgroundImage = 'url("' + _bgState.imageDataURL + '")';
+            _canvas.style.backgroundSize = fitCss;
+            _canvas.style.backgroundPosition = 'center';
+            _canvas.style.backgroundRepeat = 'no-repeat';
+          } else {
+            _canvas.style.backgroundImage = '';
+            _canvas.style.backgroundColor = _bgState.color;
+          }
+        }
+      }
+
+      function setBackground(state) {
+        state = state || {};
+        _bgState.mode = state.mode || 'none';
+        _bgState.color = state.color || '#ffffff';
+        _bgState.fit = state.fit || 'cover';
+        if (state.image && state.image !== _bgState.imageDataURL) {
+          _bgState.imageDataURL = state.image;
+          _bgState.imageEl = null;
+          _applyBgCSS();
+          var img = new Image();
+          img.onload = function() {
+            if (_bgState.imageDataURL !== state.image) return;
+            _bgState.imageEl = img;
+          };
+          img.src = state.image;
+        } else if (!state.image) {
+          _bgState.imageEl = null;
+          _bgState.imageDataURL = null;
+        }
+        _applyBgCSS();
+      }
+
+      function getBackground() {
+        return { mode: _bgState.mode, color: _bgState.color, fit: _bgState.fit };
+      }
+
+      function setCanvas(el) {
+        _canvas = el;
+        _area = el ? el.parentElement : document.querySelector('.tool-canvas-area');
+        if (_bgState.mode !== 'none') _applyBgCSS();
+      }
+
+      function setExportDimensions(w, h) {
+        _detectCanvas();
+        _exportMode = 'fixed';
+        _exportWidth = Math.max(1, Math.round(w || 1));
+        _exportHeight = Math.max(1, Math.round(h || 1));
+        if (_canvas) {
+          _canvas.width = _exportWidth;
+          _canvas.height = _exportHeight;
+        }
+        if (window.p5 && typeof window.resizeCanvas === 'function') window.resizeCanvas(_exportWidth, _exportHeight);
+        if (window.renderer && window.renderer.setSize) window.renderer.setSize(_exportWidth, _exportHeight, false);
+        if (window.hydra && window.hydra.setResolution) window.hydra.setResolution(_exportWidth, _exportHeight);
+        window.dispatchEvent(new Event('resize'));
+      }
+
+      function fitToArea() {}
+
+      function getExportDimensions() {
+        if (_exportMode === 'fixed') return { width: _exportWidth, height: _exportHeight, mode: 'fixed' };
+        _detectCanvas();
+        return { width: _canvas ? _canvas.width : 0, height: _canvas ? _canvas.height : 0, mode: 'auto' };
+      }
+
+      function isFixedExportMode() { return _exportMode === 'fixed'; }
+
+      function _onAreaResize() {
+        var r = window.renderer || window.threeRenderer;
+        if (!r || !r.setSize) return;
+        if (_resizeRAF) cancelAnimationFrame(_resizeRAF);
+        _resizeRAF = requestAnimationFrame(function() {
+          _detectCanvas();
+          if (!_area) return;
+          var w = _area.clientWidth;
+          var h = _area.clientHeight;
+          if (w <= 0 || h <= 0) return;
+          r.setSize(w, h);
+          window.dispatchEvent(new Event('resize'));
+        });
+      }
+      if (typeof ResizeObserver !== 'undefined' && _area) {
+        new ResizeObserver(_onAreaResize).observe(_area);
+      }
+      window.addEventListener('resize', _onAreaResize);
+
+      setTimeout(function() {
+        _detectCanvas();
+        if (_bgState.mode !== 'none') _applyBgCSS();
+      }, 500);
+
+      function getMousePos(event) {
+        _detectCanvas();
+        if (!_canvas) return { x: 0, y: 0 };
+        var rect = _canvas.getBoundingClientRect();
+        var scaleX = _canvas.width / rect.width;
+        var scaleY = _canvas.height / rect.height;
+        var touch = event.touches && event.touches[0]
+          ? event.touches[0]
+          : event.changedTouches && event.changedTouches[0]
+          ? event.changedTouches[0]
+          : null;
+        var clientX = touch ? touch.clientX : event.clientX;
+        var clientY = touch ? touch.clientY : event.clientY;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      }
+
+      function drawImage(ctx, img, x, y, w, h, fit) {
+        if (!img || !img.width || !img.height) return;
+        fit = fit || 'cover';
+        var ar = img.width / img.height;
+        var car = w / h;
+        var sx = 0, sy = 0, sw = img.width, sh = img.height;
+        var dx = x, dy = y, dw = w, dh = h;
+
+        if (fit === 'cover') {
+          if (ar > car) { sw = img.height * car; sx = (img.width - sw) / 2; }
+          else { sh = img.width / car; sy = (img.height - sh) / 2; }
+        } else if (fit === 'contain') {
+          if (ar > car) { dh = w / ar; dy = y + (h - dh) / 2; }
+          else { dw = h * ar; dx = x + (w - dw) / 2; }
+        }
+
+        ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+      }
+
+      return {
+        setCanvas: setCanvas,
+        setBackground: setBackground,
+        getBackground: getBackground,
+        setExportDimensions: setExportDimensions,
+        fitToArea: fitToArea,
+        getExportDimensions: getExportDimensions,
+        isFixedExportMode: isFixedExportMode,
+
+        requestMicrophone: requestMicrophone,
+        stopMicrophone: stopMicrophone,
+        onMicChunk: onMicChunk,
+        getMousePos: getMousePos,
+        drawImage: drawImage
+      };
+    })();
+
+    window.ChatoolyCanvas = window.CanvasRuntimeAPI;
+    window.ChatoolyControls = window.ControlsAPI;
+
+    (function() {
+      var srcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+      if (srcDesc && srcDesc.set) {
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          get: srcDesc.get,
+          set: function(val) {
+            if (val && typeof val === 'string' && !val.startsWith('data:') && !this.crossOrigin) {
+              this.crossOrigin = 'anonymous';
+            }
+            srcDesc.set.call(this, val);
+          },
+          configurable: true,
+          enumerable: true
+        });
+      }
+    })();
+
+    window.loadImage = function(src, callback) {
+      var img = new Image();
+      if (src && typeof src === 'string' && !src.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.onload = function() { if (callback) callback(img); };
+      img.onerror = function() { console.error('Failed to load image:', src); };
+      img.src = src;
+      return img;
+    };
+  
+  </script>
+  <script>
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var __ctArea = canvas.parentElement;
+    var __maxDim = (window.innerWidth <= 768) ? 960 : 4096;
+
+    function resizeCanvas() {
+      var cs = getComputedStyle(__ctArea);
+      canvas.width = Math.min(__maxDim, __ctArea.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+      canvas.height = Math.min(__maxDim, __ctArea.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom));
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    var controls = (function() {
+      var _v = {"mode":"image","textContent":"הד ארצי","sourceImage":"https://base44.app/api/apps/69cbcd44d3da2a5cef013f5e/files/mp/public/69cbcd44d3da2a5cef013f5e/630e687a2_sourceImage_mqj6s2ti.png","imageScale":0.61,"sliceCount":7,"angle":0,"angleSpread":14,"angleRandomness":4,"displacementX":45,"displacementY":0,"randomness":1,"animate":true,"animationSpeed":7,"audioReactive":true,"perSegmentAudio":true,"audioSensitivity":82,"audioSmoothing":0.36,"audioThreshold":0.12,"audioFreqSpread":0.6,"audioBand":"Bass","audioTargetDisplacement":true,"audioTargetSpeed":false,"audioTargetChaos":false,"audioTargetThickness":false,"activeSegment":3,"segmentX":0,"fontSize":200,"textColor":"#000000","fontSettings":{"family":"sans-serif","style":"normal","weight":700,"url":null},"showLines":true,"lineWidth":8,"lineColor":"#000000","lineOpacity":0,"hiddenLines":"0, 5, 4","bgOverlayOpacity":0,"bgOverlayColor":"#ffffff"};
+      var _defaults = JSON.parse(JSON.stringify(_v));
+      function _hexToRgb(hex) {
+        var h = String(hex || '').replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        if (h.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(h)) return null;
+        return {
+          r: parseInt(h.slice(0, 2), 16),
+          g: parseInt(h.slice(2, 4), 16),
+          b: parseInt(h.slice(4, 6), 16)
+        };
+      }
+      function _clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
+      function _hexToRgbaCss(hex, opacity0to100) {
+        var rgb = _hexToRgb(hex);
+        if (!rgb) return 'rgba(0,0,0,1)';
+        var op = opacity0to100 != null && !isNaN(Number(opacity0to100)) ? Number(opacity0to100) : 100;
+        var a = _clamp(op, 0, 100) / 100;
+        return 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + a + ')';
+      }
+      var api = {
+        get: function(k) { return _v[k]; },
+        getAll: function() { return Object.assign({}, _v); },
+        getDefaults: function() { return JSON.parse(JSON.stringify(_defaults)); },
+        getColorWithAlpha: function(baseKey) { return _hexToRgbaCss(_v[baseKey], _v[baseKey + '_opacity']); },
+        set: function(k, v) { _v[k] = v; },
+        onChange: function() {},
+        onAny: function() {},
+        onAction: function() {}
+      };
+      window.ControlsAPI = api;
+      window.ChatoolyControls = api;
+      return api;
+    })();
+
+    
+
+    // Creative Code
+    {
+      // @clay-no-bg-control
+
+let isFontLoaded = false;
+let loadedImage = null;
+let currentImageUrl = null;
+let time = 0;
+
+// Mode & Transition State
+let targetMode = 0;
+let modeLerp = 0; // Smoothly moves towards targetMode index (0, 1, 2)
+
+// Audio State
+let micStream = null;
+let audioCtx = null;
+let analyser = null;
+let dataArray = null;
+let smoothedVolume = 0;
+let segmentVolumes = []; // Array for per-segment smoothed volumes
+
+// Individual segment state
+let manualOffsets = [];
+let isUpdatingFromCode = false;
+
+function initManualOffsets() {
+  const count = controls.get('sliceCount');
+  manualOffsets = Array.from({ length: count }, () => ({ x: 0, y: 0 }));
+  segmentVolumes = Array.from({ length: count }, () => 0);
+  updateActiveSegmentRange();
+}
+
+function updateActiveSegmentRange() {
+  const count = controls.get('sliceCount');
+  if (controls.get('activeSegment') >= count) {
+    controls.set('activeSegment', count - 1);
+  }
+}
+
+// Sync sliders with manualOffsets when activeSegment changes
+controls.onChange('activeSegment', (val) => {
+  if (isUpdatingFromCode) return;
+  const segment = manualOffsets[val];
+  if (segment) {
+    isUpdatingFromCode = true;
+    controls.set('segmentX', segment.x);
+    isUpdatingFromCode = false;
+  }
+});
+
+// Sync manualOffsets when sliders change
+const syncFromSliders = () => {
+  if (isUpdatingFromCode) return;
+  const idx = controls.get('activeSegment');
+  if (manualOffsets[idx]) {
+    manualOffsets[idx].x = controls.get('segmentX');
+  }
+};
+
+controls.onChange('segmentX', syncFromSliders);
+
+controls.onChange('sliceCount', () => {
+  initManualOffsets();
+});
+
+controls.onAction('resetSegments', () => {
+  manualOffsets.forEach(s => { s.x = 0; s.y = 0; });
+  isUpdatingFromCode = true;
+  controls.set('segmentX', 0);
+  isUpdatingFromCode = false;
+});
+
+// Audio Logic
+async function startAudio() {
+  const statusEl = document.getElementById('audioStatus');
+
+  try {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    if (micStream && analyser && dataArray) {
+      if (statusEl) statusEl.textContent = 'המיקרופון פעיל';
+      return true;
+    }
+
+    micStream = await CanvasRuntimeAPI.requestMicrophone({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      },
+      video: false
+    });
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.15;
+    source.connect(analyser);
+
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    controls.set('audioReactive', true);
+
+    if (statusEl) statusEl.textContent = 'המיקרופון פעיל';
+    return true;
+  } catch (e) {
+    console.error('Microphone access denied', e);
+    controls.set('audioReactive', false);
+
+    if (statusEl) {
+      statusEl.textContent =
+        'לא התקבלה גישה למיקרופון: ' + (e.message || e.name || 'שגיאה');
+    }
+
+    return false;
+  }
+}
+
+function stopAudio() {
+  if (micStream) {
+    CanvasRuntimeAPI.stopMicrophone(micStream);
+    micStream = null;
+  }
+  if (audioCtx) {
+    audioCtx.close();
+    audioCtx = null;
+  }
+  analyser = null;
+  dataArray = null;
+  smoothedVolume = 0;
+  segmentVolumes.fill(0);
+}
+
+controls.onChange('audioReactive', (val) => {
+  if (val) startAudio();
+  else stopAudio();
+});
+
+// Deterministic random helper
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+async function loadFont() {
+  const font = controls.get('fontSettings');
+  const size = controls.get('fontSize');
+  try {
+    await document.fonts.load(`${font.style} ${font.weight} ${size}px ${font.family}`);
+    isFontLoaded = true;
+  } catch (e) {
+    console.warn("Font load failed, using fallback", e);
+    isFontLoaded = true;
+  }
+}
+
+function loadImage() {
+  const url = controls.get('sourceImage');
+  if (!url) {
+    loadedImage = null;
+    currentImageUrl = null;
+    return;
+  }
+  if (url === currentImageUrl) return;
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    loadedImage = img;
+    currentImageUrl = url;
+  };
+  img.src = url;
+}
+
+// Initial load
+loadFont();
+loadImage();
+initManualOffsets();
+
+controls.onChange('fontSettings', loadFont);
+controls.onChange('fontSize', loadFont);
+controls.onChange('sourceImage', loadImage);
+
+// Mouse interaction: Cycle modes + Select segment
+canvas.addEventListener('mousedown', (e) => {
+  const pos = CanvasRuntimeAPI.getMousePos(e);
+  const w = canvas.width;
+  const h = canvas.height;
+  const centerX = w / 2;
+  const sliceCount = controls.get('sliceCount');
+  const mode = controls.get('mode');
+  const size = controls.get('fontSize');
+  
+  // Cycle target mode
+  targetMode = (targetMode + 1) % 3;
+  
+  let startY, totalSliceAreaHeight;
+  if (mode === 'text') {
+    totalSliceAreaHeight = size * 1.5;
+    startY = h / 2 - totalSliceAreaHeight / 2;
+  } else {
+    totalSliceAreaHeight = h;
+    startY = 0;
+  }
+  
+  const baseAngle = controls.get('angle');
+  const angleSpread = controls.get('angleSpread');
+  const angleRandomness = controls.get('angleRandomness');
+
+  const getLineY = (idx, x) => {
+    let yPos = startY + (idx / sliceCount) * totalSliceAreaHeight;
+    let lineAngle = baseAngle;
+    if (idx > 0 && idx < sliceCount) {
+      const spreadFactor = (idx / sliceCount) - 0.5;
+      lineAngle += spreadFactor * angleSpread;
+      const rand = seededRandom(idx * 777);
+      lineAngle += (rand - 0.5) * 2 * angleRandomness;
+    }
+    const rad = (lineAngle * Math.PI) / 180;
+    return yPos + (x - centerX) * Math.tan(rad);
+  };
+
+  // Check which slice the mouse is in for selection
+  for (let i = 0; i < sliceCount; i++) {
+    const topYAtMouse = getLineY(i, pos.x);
+    const bottomYAtMouse = getLineY(i + 1, pos.x);
+
+    if (pos.y >= topYAtMouse && pos.y <= bottomYAtMouse) {
+      controls.set('activeSegment', i);
+      break;
+    }
+  }
+});
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Background Overlay
+  const bgOpacity = controls.get('bgOverlayOpacity') / 100;
+  if (bgOpacity > 0) {
+    ctx.save();
+    ctx.fillStyle = controls.get('bgOverlayColor');
+    ctx.globalAlpha = bgOpacity;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+  const mode = controls.get('mode');
+  if (mode === 'text' && !isFontLoaded) return;
+  if (mode === 'image' && !loadedImage) {
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'center';
+    ctx.fillText('Upload an image to slice', canvas.width / 2, canvas.height / 2);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const text = controls.get('textContent');
+  const font = controls.get('fontSettings');
+  const size = controls.get('fontSize');
+  const color = controls.get('textColor');
+  const sliceCount = controls.get('sliceCount');
+  
+  const baseAngle = controls.get('angle');
+  const angleSpread = controls.get('angleSpread');
+  const angleRandomness = controls.get('angleRandomness');
+  
+  let displacementX = controls.get('displacementX');
+  let displacementY = controls.get('displacementY');
+  let randomness = controls.get('randomness');
+  const showLines = controls.get('showLines');
+  const lineColor = controls.get('lineColor');
+  const lineOpacity = controls.get('lineOpacity') / 100;
+  const activeIdx = controls.get('activeSegment');
+  const hiddenLinesStr = controls.get('hiddenLines') || "";
+  const hiddenIndices = hiddenLinesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+  const animate = controls.get('animate');
+  let animSpeed = controls.get('animationSpeed') / 1000;
+
+  // Audio Reactivity
+  const audioReactive = controls.get('audioReactive');
+  const perSegment = controls.get('perSegmentAudio');
+  const sensitivity = controls.get('audioSensitivity');
+  const smoothing = controls.get('audioSmoothing');
+  const threshold = controls.get('audioThreshold');
+  const band = controls.get('audioBand');
+  const freqSpread = controls.get('audioFreqSpread');
+  
+  let globalVolume = 0;
+  if (audioReactive && analyser && dataArray) {
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Global Volume Calculation
+    let start = 0, end = dataArray.length;
+    if (band === 'Bass') { end = Math.floor(dataArray.length * 0.2); }
+    else if (band === 'Mid') { start = Math.floor(dataArray.length * 0.2); end = Math.floor(dataArray.length * 0.6); }
+    else if (band === 'Treble') { start = Math.floor(dataArray.length * 0.6); }
+    
+    let sum = 0;
+    for (let i = start; i < end; i++) sum += dataArray[i];
+    globalVolume = (sum / (end - start)) / 255;
+    if (globalVolume < threshold) globalVolume = 0;
+    else globalVolume = (globalVolume - threshold) / (1 - threshold);
+  }
+
+  smoothedVolume = lerp(smoothedVolume, globalVolume, 1 - smoothing);
+
+  if (animate || (audioReactive && controls.get('audioTargetSpeed'))) {
+    const speedBoost = audioReactive ? smoothedVolume * (sensitivity / 5) : 0;
+    time += animSpeed * (1 + speedBoost);
+  }
+
+  // Smooth mode transition
+  const transitionSpeed = 0.08;
+  modeLerp = lerp(modeLerp, targetMode, transitionSpeed);
+
+  const centerX = w / 2;
+  const centerY = h / 2;
+
+  let startY, totalSliceAreaHeight;
+  if (mode === 'text') {
+    totalSliceAreaHeight = size * 1.5;
+    startY = centerY - totalSliceAreaHeight / 2;
+  } else {
+    totalSliceAreaHeight = h;
+    startY = 0;
+  }
+
+  const sliceHeight = totalSliceAreaHeight / sliceCount;
+
+  const lines = [];
+  for (let i = 0; i <= sliceCount; i++) {
+    const yPos = startY + i * sliceHeight;
+    let lineAngle = baseAngle;
+    if (i > 0 && i < sliceCount) {
+      const spreadFactor = (i / sliceCount) - 0.5;
+      lineAngle += spreadFactor * angleSpread;
+      const rand = seededRandom(i * 777);
+      lineAngle += (rand - 0.5) * 2 * angleRandomness;
+    } else {
+      lineAngle = baseAngle;
+    }
+    const rad = (lineAngle * Math.PI) / 180;
+    lines.push({ y: yPos, tan: Math.tan(rad) });
+  }
+
+  for (let i = 0; i < sliceCount; i++) {
+    const lineTop = lines[i];
+    const lineBottom = lines[i+1];
+
+    // Per-segment audio volume
+    let segVol = smoothedVolume;
+    if (audioReactive && perSegment && dataArray) {
+      const binIdx = Math.floor((i / sliceCount) * dataArray.length * 0.5 * freqSpread);
+      let rawVol = (dataArray[binIdx % dataArray.length] || 0) / 255;
+      if (rawVol < threshold) rawVol = 0;
+      else rawVol = (rawVol - threshold) / (1 - threshold);
+      
+      segmentVolumes[i] = lerp(segmentVolumes[i] || 0, rawVol, 1 - smoothing);
+      segVol = segmentVolumes[i];
+    }
+    
+    const reactFactor = segVol * (sensitivity / 10);
+
+    // Calculate offsets for each state
+    const s0x = 0, s0y = 0;
+    const offsetDir = i % 2 === 0 ? 1 : -1;
+    
+    let dX = displacementX;
+    let dY = displacementY;
+    let randFactor = randomness;
+    
+    if (audioReactive) {
+      if (controls.get('audioTargetDisplacement')) {
+        dX *= (1 + reactFactor * 5);
+        dY *= (1 + reactFactor * 5);
+      }
+      if (controls.get('audioTargetChaos')) {
+        randFactor = Math.min(1, randFactor + reactFactor * 2);
+      }
+    }
+
+    const s1x = offsetDir * dX;
+    const s1y = offsetDir * dY;
+    const rand = seededRandom(i + 1);
+    const waveX = Math.sin(time + i * 0.5) * dX;
+    const s2x = waveX + ((rand - 0.5) * 2 * dX * randFactor);
+    const s2y = (rand - 0.5) * 2 * dY * randFactor;
+
+    let finalOffsetX, finalOffsetY;
+    if (modeLerp <= 1) {
+      finalOffsetX = lerp(s0x, s1x, modeLerp);
+      finalOffsetY = lerp(s0y, s1y, modeLerp);
+    } else {
+      finalOffsetX = lerp(s1x, s2x, modeLerp - 1);
+      finalOffsetY = lerp(s1y, s2y, modeLerp - 1);
+    }
+
+    const manual = manualOffsets[i] || { x: 0, y: 0 };
+    finalOffsetX += manual.x;
+    finalOffsetY += manual.y;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, lineTop.y + (0 - centerX) * lineTop.tan);
+    ctx.lineTo(w, lineTop.y + (w - centerX) * lineTop.tan);
+    ctx.lineTo(w, lineBottom.y + (w - centerX) * lineBottom.tan);
+    ctx.lineTo(0, lineBottom.y + (0 - centerX) * lineBottom.tan);
+    ctx.closePath();
+    ctx.clip();
+
+    if (i === activeIdx) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+      ctx.fill();
+    }
+
+    ctx.translate(centerX + finalOffsetX, centerY + finalOffsetY);
+    ctx.translate(-centerX, -centerY);
+
+    if (mode === 'text') {
+      ctx.font = `${font.style} ${font.weight} ${size}px ${font.family}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = color;
+      ctx.fillText(text, centerX, centerY);
+    } else if (loadedImage) {
+      const scale = controls.get('imageScale');
+      const imgW = w * scale;
+      const imgH = h * scale;
+      const imgX = (w - imgW) / 2;
+      const imgY = (h - imgH) / 2;
+      CanvasRuntimeAPI.drawImage(ctx, loadedImage, imgX, imgY, imgW, imgH, 'cover');
+    }
+    ctx.restore();
+
+    const isHidden = hiddenIndices.includes(i);
+    if (showLines && i < sliceCount && !isHidden) {
+      let currentLineWidth = controls.get('lineWidth');
+      if (audioReactive && controls.get('audioTargetThickness')) {
+        currentLineWidth *= (1 + reactFactor * 10);
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = lineColor;
+      ctx.globalAlpha = lineOpacity;
+      ctx.lineWidth = (i === activeIdx - 1 || i === activeIdx) ? currentLineWidth + 1 : currentLineWidth;
+      ctx.moveTo(0, lineBottom.y + (0 - centerX) * lineBottom.tan);
+      ctx.lineTo(w, lineBottom.y + (w - centerX) * lineBottom.tan);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+
+const sensitivitySlider = document.getElementById('sensitivitySlider');
+const smoothingSlider = document.getElementById('smoothingSlider');
+const sensitivityValue = document.getElementById('sensitivityValue');
+const smoothingValue = document.getElementById('smoothingValue');
+const audioStartButton = document.getElementById('audioStartButton');
+const audioStartOverlay = document.getElementById('audioStartOverlay');
+const audioPanel = document.getElementById('audioPanel');
+const hideControlsButton = document.getElementById('hideControlsButton');
+const showControlsButton = document.getElementById('showControlsButton');
+const sliderControls = document.getElementById('sliderControls');
+const toggleSlidersButton = document.getElementById('toggleSlidersButton');
+const backgroundColorPicker = document.getElementById('backgroundColorPicker');
+const backgroundColorValue = document.getElementById('backgroundColorValue');
+const sliceCountSlider = document.getElementById('sliceCountSlider');
+const sliceCountValue = document.getElementById('sliceCountValue');
+const cutAngleSlider = document.getElementById('cutAngleSlider');
+const cutAngleValue = document.getElementById('cutAngleValue');
+const cutDensitySlider = document.getElementById('cutDensitySlider');
+const cutDensityValue = document.getElementById('cutDensityValue');
+
+if (sensitivitySlider) {
+  sensitivitySlider.value = controls.get('audioSensitivity');
+  sensitivityValue.textContent = sensitivitySlider.value;
+
+  sensitivitySlider.addEventListener('input', () => {
+    const value = Number(sensitivitySlider.value);
+    controls.set('audioSensitivity', value);
+    sensitivityValue.textContent = String(value);
+  });
+}
+
+if (smoothingSlider) {
+  smoothingSlider.value = controls.get('audioSmoothing');
+  smoothingValue.textContent = Number(smoothingSlider.value).toFixed(2);
+
+  smoothingSlider.addEventListener('input', () => {
+    const value = Number(smoothingSlider.value);
+    controls.set('audioSmoothing', value);
+    smoothingValue.textContent = value.toFixed(2);
+  });
+}
+
+
+if (sliceCountSlider) {
+  sliceCountSlider.value = controls.get('sliceCount');
+  sliceCountValue.textContent = sliceCountSlider.value;
+
+  sliceCountSlider.addEventListener('input', () => {
+    const value = Math.max(2, Math.min(8, Number(sliceCountSlider.value)));
+    controls.set('sliceCount', value);
+    sliceCountValue.textContent = String(value);
+    initManualOffsets();
+  });
+}
+
+
+if (cutAngleSlider) {
+  cutAngleSlider.value = controls.get('angle');
+  cutAngleValue.textContent = cutAngleSlider.value + '°';
+
+  cutAngleSlider.addEventListener('input', () => {
+    const value = Number(cutAngleSlider.value);
+    controls.set('angle', value);
+    cutAngleValue.textContent = value + '°';
+  });
+}
+
+if (cutDensitySlider) {
+  cutDensitySlider.value = controls.get('angleSpread');
+  cutDensityValue.textContent = cutDensitySlider.value;
+
+  cutDensitySlider.addEventListener('input', () => {
+    const value = Number(cutDensitySlider.value);
+    controls.set('angleSpread', value);
+    cutDensityValue.textContent = String(value);
+  });
+}
+
+if (audioStartButton) {
+  audioStartButton.addEventListener('click', async () => {
+    audioStartButton.disabled = true;
+    audioStartButton.textContent = 'מפעיל…';
+
+    const started = await startAudio();
+
+    if (started) {
+      audioStartOverlay.style.display = 'none';
+    } else {
+      audioStartButton.disabled = false;
+      audioStartButton.textContent = 'נסה שוב';
+    }
+  });
+}
+
+
+if (backgroundColorPicker) {
+  const initialBackground = '#ffffff';
+  document.documentElement.style.background = initialBackground;
+  document.body.style.background = initialBackground;
+  backgroundColorValue.textContent = initialBackground;
+
+  backgroundColorPicker.addEventListener('input', () => {
+    const color = backgroundColorPicker.value;
+    document.documentElement.style.background = color;
+    document.body.style.background = color;
+    backgroundColorValue.textContent = color;
+  });
+}
+
+if (toggleSlidersButton) {
+  toggleSlidersButton.addEventListener('click', () => {
+    const hidden = sliderControls.classList.toggle('is-hidden');
+    toggleSlidersButton.textContent = hidden ? 'הצגת סליידרים' : 'הסתרת סליידרים';
+  });
+}
+
+if (hideControlsButton) {
+  hideControlsButton.addEventListener('click', () => {
+    audioPanel.style.display = 'none';
+    showControlsButton.style.display = 'block';
+  });
+}
+
+if (showControlsButton) {
+  showControlsButton.addEventListener('click', () => {
+    audioPanel.style.display = 'block';
+    showControlsButton.style.display = 'none';
+  });
+}
+
+requestAnimationFrame(draw);
+
+    }
+
+    
+  </script>
+</body>
+</html>
